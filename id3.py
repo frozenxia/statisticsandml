@@ -2,11 +2,13 @@ import pandas  as pd
 from collections import namedtuple
 from pprint import pformat
 import numpy as np
+from recordtype import recordtype
 
+class Node(recordtype('Node','data clss leaf children split')):
+    # def __repr__(self):
+    #     return pformat(self)
+    pass
 
-class Node(namedtuple('Node','data clss leaf children split')):
-    def __repr__(self):
-        return pformat(tuple(self))
 
 
 def mk_decision_tree(pdsets,gaThreshold=0):
@@ -27,13 +29,14 @@ def mk_decision_tree(pdsets,gaThreshold=0):
             gcol = col
     # if ga < gaThreshold ,then mark T as leaf
     if ga <= gaThreshold:
-        labelNums = get_set_class_count(pdsets)
-        lc = 0
-        lk = 0
-        for k,v in labelNums.items():
-            if lc < v:
-                lc = v
-                lk = k
+        # labelNums = get_set_class_count(pdsets)
+        # lc = 0
+        # lk = 0
+        # for k,v in labelNums.items():
+        #     if lc < v:
+        #         lc = v
+        #         lk = k
+        lk = get_node_label(pdsets)
         return Node(data=pdsets,clss=lk,leaf=True,children=None,split=None)
     
 
@@ -43,11 +46,48 @@ def mk_decision_tree(pdsets,gaThreshold=0):
         children[k] = mk_decision_tree(pdsets[pdsets[gcol]==k])
     return  Node(data=pdsets,clss=None,leaf=False,children=children,split=gcol)
 
-def reduce_decision_tree(root):
+def get_node_label(pdsets):
+    labelNums = get_set_class_count(pdsets)
+    lc = 0
+    lk = None
+    for k,v in labelNums.items():
+        if lc < v:
+            lc = v
+            lk = k
+    return lk
+
+def get_loss(root,alph=0):
+    if (root == None or root.leaf):
+        return 0
+    cat1 = 0.0
+    for k,v in root.children.items():
+        # print(k,cat1)
+        # print(len(v.data))
+        # print(v.data)
+        # print(get_set_information(v.data))
+        cat1 = cat1 + float(len(v.data)) * get_set_information(v.data)
+    # print(cat1)
+    cat = cat1 + alph*len(root.children)
+    return cat
+
+
+
+def reduce_decision_tree(root,alpha):
     if root.leaf == True:
-         
+        return True        
+    for k,v in root.children.items():
+        reduce_decision_tree(v,alpha)
+    cat1 = get_loss(root,alpha)
+    cat2 = len(root.data)*get_set_information(root.data)
 
-
+    if(cat1 > cat2):
+        # print(root.leaf)
+        root.leaf = True
+        root.children = None
+        root.clss = get_node_label(root.data)
+        root.split = None
+        return True
+    return False
 
 def get_set_class_count(pdsets):
     labelSets = set(pdsets['label'])
@@ -90,7 +130,7 @@ def get_set_information(pdsets,col = 'label'):
     for k,v in labelNums.items():
         sum += -(float(v)/totalCount)*np.log2(float(v)/totalCount)
     return sum
-1
+
 
 def get_entropy():
         # print (index ,row)
@@ -104,12 +144,19 @@ if __name__ =='__main__':
     # #only one class
     # if(len(clsSets)) == 1:
     #     return Node(data=pdsets,clss=clsSets.pop(),leaf=True,children=None,split=None)ace=True)
-    print(get_set_information(pdsets,col=1))
-    print(get_set_information(pdsets,col=0))
-    print(get_mutual_information_ratio(pdsets,0))
-    print(get_mutual_information_ratio(pdsets,1))
-    print(get_mutual_information_ratio(pdsets,2))
+    # print(get_set_information(pdsets,col=1))
+    # print(get_set_information(pdsets,col=0))
+    # print(get_mutual_information_ratio(pdsets,0))
+    # print(get_mutual_information_ratio(pdsets,1))
+    # print(get_mutual_information_ratio(pdsets,2))
     # print(get_mutual_information_ratio(pdsets,0))
     # print(get_mutual_information_ratio(pdsets,2))
     # print(get_mutual_information(pdsets,2))   # get the split index 
-    # print(mk_decision_tree(pdsets,3))
+    # print(mk_decision_tree(pdsets))
+    tr = mk_decision_tree(pdsets)
+
+    cat = get_loss(tr)
+    print(cat)
+
+    reduce_decision_tree(tr,0)
+    print(tr)
